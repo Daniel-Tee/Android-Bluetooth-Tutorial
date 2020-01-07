@@ -16,4 +16,13 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <Button
+        android:id="@+id/btn_toggle_discoverability"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:text="@string/button_toggle_discoverability"
+        app:layout_constraintBaseline_toBaselineOf="@+id/btn_on_off"
+        app:layout_constraintStart_toEndOf="@+id/btn_on_off" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>
