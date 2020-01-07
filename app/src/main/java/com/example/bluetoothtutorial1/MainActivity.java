@@ -1,16 +1,23 @@
 package com.example.bluetoothtutorial1;
 
-import androidx.appcompat.app.AppCompatActivity;
-
+import android.Manifest;
+import android.annotation.TargetApi;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ListView;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+import java.util.ArrayList;
 
 // ================================================================================================
 // BluetoothTutorial1:
@@ -18,7 +25,14 @@ import android.widget.Button;
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
 
+    Button btn_on_off;
+    Button btn_toggle_discoverability;
+    Button btn_discover;
+    ListView list_new_devices;
+
     BluetoothAdapter mBluetoothAdapter;
+    public ArrayList<BluetoothDevice> mBTDevices = new ArrayList<>();
+    public DeviceListAdapter mDeviceListAdapter;
 
     // Create broadcast receiver for ACTION_FOUND
     private final BroadcastReceiver mBroadcastReceiver1 = new BroadcastReceiver() {
@@ -92,14 +106,34 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+    private final BroadcastReceiver mBroadcastReceiver3 = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            final String action = intent.getAction();
+
+            if (action.equals(BluetoothDevice.ACTION_FOUND)) {
+                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                mBTDevices.add(device);
+                Log.d(TAG, "onReceive: " + device.getName() + ": " + device.getAddress());
+                mDeviceListAdapter = new DeviceListAdapter(context, R.layout.activity_device_list_adapter, mBTDevices);
+                list_new_devices.setAdapter(mDeviceListAdapter);
+            }
+        }
+    };
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
         // Define buttons from xml
-        Button btn_on_off = findViewById(R.id.btn_on_off);
-        Button btn_toggle_discoverability = findViewById(R.id.btn_toggle_discoverability);
+        btn_on_off = findViewById(R.id.btn_on_off);
+        btn_toggle_discoverability = findViewById(R.id.btn_toggle_discoverability);
+        btn_discover = findViewById(R.id.btn_discover);
+
+        // Define list view
+        list_new_devices = findViewById(R.id.list_new_devices);
+        mBTDevices = new ArrayList<>();
 
         // Define the bluetooth adapter on phone
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -120,6 +154,14 @@ public class MainActivity extends AppCompatActivity {
                 enableDisableDiscoverability();
             }
         });
+
+        btn_discover.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Log.d(TAG, "onClick: Button discover pressed");
+                discoverDevice();
+            }
+        });
     }
 
     // Turn off the broadcast receiver when destroyed
@@ -129,9 +171,10 @@ public class MainActivity extends AppCompatActivity {
         super.onDestroy();
         unregisterReceiver(mBroadcastReceiver1);
         unregisterReceiver(mBroadcastReceiver2);
+        unregisterReceiver(mBroadcastReceiver3);
     }
 
-    // Enable/Disable bluetooth method
+    // Enable/Disable bluetooth button method
     public void enableDisableBT() {
         // Case 1: Phone doesn't have bluetooth
         if (mBluetoothAdapter == null) {
@@ -162,6 +205,7 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    // Toggle discoverability button method
     public void enableDisableDiscoverability() {
         Log.d(TAG, "enableDisableDiscoverability: Making device discoverable for 300 secs.");
 
@@ -172,4 +216,48 @@ public class MainActivity extends AppCompatActivity {
         IntentFilter intentFilter = new IntentFilter(mBluetoothAdapter.ACTION_SCAN_MODE_CHANGED);
         registerReceiver(mBroadcastReceiver2, intentFilter);
     }
+
+    // Discover device button method
+    public void discoverDevice() {
+        Log.d(TAG, "discoverDevice: Looking for unpaired devices...");
+
+        // If already discovering
+        if (mBluetoothAdapter.isDiscovering()) {
+            mBluetoothAdapter.cancelDiscovery();
+            Log.d(TAG, "discoverDevice: Cancelling discovery.");
+
+            // Check bluetooth permissions for compatibility with > Lollipop
+            checkBTPermission();
+
+            mBluetoothAdapter.startDiscovery();
+            IntentFilter discoverDevicesIntent = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+            registerReceiver(mBroadcastReceiver3, discoverDevicesIntent);
+        }
+
+        // If not discovering
+        if (!mBluetoothAdapter.isDiscovering()) {
+            // Check bluetooth permissions for compatibility with > Lollipop
+            checkBTPermission();
+
+            mBluetoothAdapter.startDiscovery();
+            IntentFilter discoverDevicesIntent = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+            registerReceiver(mBroadcastReceiver3, discoverDevicesIntent);
+        }
+
+    }
+
+    @TargetApi(23)
+    private void checkBTPermission() {
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.LOLLIPOP) {
+            int permissionCheck = this.checkSelfPermission("Manifest.permission.ACCESS_FINE_LOCATION");
+            permissionCheck += this.checkSelfPermission("Manifest.permission.ACCESS_COARSE_LOACTION");
+
+            if (permissionCheck != 0) {
+                this.requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, 1);
+            }
+        } else {
+            Log.d(TAG, "checkBTPermissions: Version not higher than lollipop, no need to check");
+        }
+    }
+
 }
