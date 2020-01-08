@@ -12,6 +12,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.ListView;
 
@@ -20,9 +21,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import java.util.ArrayList;
 
 // ================================================================================================
-// BluetoothTutorial1:
-//      - Use a button to turn on and off bluetooth
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements AdapterView.OnItemClickListener {
     private static final String TAG = "MainActivity";
 
     Button btn_on_off;
@@ -121,6 +120,32 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+    private final BroadcastReceiver mBroadcastReceiver4 = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            final String action = intent.getAction();
+
+            if (action.equals(BluetoothDevice.ACTION_BOND_STATE_CHANGED)) {
+                BluetoothDevice mDevice = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+
+                // Case 1: Already bonded
+                if (mDevice.getBondState() == BluetoothDevice.BOND_BONDED) {
+                    Log.d(TAG, "onReceive: BOND_BONDED.");
+                }
+
+                // Case 2: Creating a bond
+                if (mDevice.getBondState() == BluetoothDevice.BOND_BONDING) {
+                    Log.d(TAG, "onReceive: BOND_BONDING.");
+                }
+
+                // Case 3: Breaking a bond
+                if (mDevice.getBondState() == BluetoothDevice.BOND_NONE) {
+                    Log.d(TAG, "onReceive: BOND_NONE.");
+                }
+            }
+        }
+    };
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -137,6 +162,12 @@ public class MainActivity extends AppCompatActivity {
 
         // Define the bluetooth adapter on phone
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+
+        // Pairing receiver
+        IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
+        registerReceiver(mBroadcastReceiver4, filter);
+
+        list_new_devices.setOnItemClickListener(MainActivity.this);
 
         // Call enable/disable when button pressed
         btn_on_off.setOnClickListener(new View.OnClickListener() {
@@ -172,6 +203,7 @@ public class MainActivity extends AppCompatActivity {
         unregisterReceiver(mBroadcastReceiver1);
         unregisterReceiver(mBroadcastReceiver2);
         unregisterReceiver(mBroadcastReceiver3);
+        unregisterReceiver(mBroadcastReceiver4);
     }
 
     // Enable/Disable bluetooth button method
@@ -259,5 +291,26 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, "checkBTPermissions: Version not higher than lollipop, no need to check");
         }
     }
+
+   public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+       // Cancel discovery as it's very memory intensive
+       mBluetoothAdapter.cancelDiscovery();
+
+       Log.d(TAG, "onItemClick: Device clicked.");
+       String deviceName = mBTDevices.get(i).getName();
+       String deviceAddress = mBTDevices.get(i).getAddress();
+
+       Log.d(TAG, "onItemClick: deviceName: " + deviceName);
+       Log.d(TAG, "onItemClick: deviceAddress: " + deviceAddress);
+
+       // Create the bond
+       // Requires API 18+
+       if (Build.VERSION.SDK_INT > Build.VERSION_CODES.JELLY_BEAN_MR2) {
+           Log.d(TAG, "onItemClick: Trying to pair with " + deviceName);
+           mBTDevices.get(i).createBond();
+       } else {
+           Log.d(TAG, "onItemClick: API level too low. Cannot pair.");
+       }
+   }
 
 }

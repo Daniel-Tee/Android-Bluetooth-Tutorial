@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Bluetooth Tutorial 2</string>
+    <string name="app_name">Bluetooth Tutorial 4</string>
     <string name="button_text">ON/OFF</string>
     <string name="button_toggle_discoverability">Toggle\nDiscoverability</string>
     <string name="button_discover">Discover</string>
